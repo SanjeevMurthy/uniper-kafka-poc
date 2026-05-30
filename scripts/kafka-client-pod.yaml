@@ -1,0 +1,24 @@
+# Kafka client pod used by scripts/kafka-smoke-test.sh.
+#
+# Image: official Confluent Platform cp-kafka image; ships with
+# kafka-console-producer and kafka-console-consumer.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kafka-client
+  labels:
+    app: kafka-client
+    purpose: smoke-test
+spec:
+  restartPolicy: Never
+  containers:
+    - name: kafka
+      image: confluentinc/cp-kafka:7.7.0
+      command: ["bash", "-c", "sleep 3600"]
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "256Mi"
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
