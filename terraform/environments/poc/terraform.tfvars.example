@@ -1,0 +1,27 @@
+# Copy to terraform.tfvars (NEVER commit terraform.tfvars).
+# In CI, these values come from TF_VAR_* environment variables and GitHub
+# variables/secrets, not from this file.
+
+# REQUIRED — sourced from the Confluent Console (Cloud-resource-management key)
+confluent_cloud_api_key    = "<key>"
+confluent_cloud_api_secret = "<secret>"
+
+# REQUIRED — your Azure subscription
+azure_subscription_id = "00000000-0000-0000-0000-000000000000"
+
+# Optional — defaults are usually fine for the POC
+# azure_region                = "westeurope"
+# project_name                = "uniper-poc"
+# confluent_environment_name  = "uniper-poc"
+# confluent_cluster_name      = "uniper-poc-kafka"
+# topic_names                 = ["orders", "payments"]
+# topic_partitions            = 6
+# topic_retention_ms          = 604800000   # 7 days
+# app_service_account_name    = "poc-app-sa"
+# consumer_group_prefix       = "poc-"
+# resource_group_name         = "uniper-poc-rg"
+# vnet_address_space          = "10.0.0.0/16"
+# aks_subnet_prefix           = "10.0.1.0/24"
+# pe_subnet_prefix            = "10.0.2.0/24"
+# aks_node_count              = 1
+# aks_vm_size                 = "Standard_DS2_v2"
