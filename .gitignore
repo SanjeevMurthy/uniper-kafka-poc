@@ -116,12 +116,5 @@ plan*/
 **/override.tf.json
 **/*_override.tf
 **/*_override.tf.json
-
-# Lock files: COMMITTED for terraform/bootstrap and terraform/environments/poc
-# (not ignored — see docs/decisions for rationale)
-
-# ----------------------------------------------------------------------
-# Tooling
-# ----------------------------------------------------------------------
 .envrc
 .direnv/

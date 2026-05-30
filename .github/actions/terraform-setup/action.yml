@@ -1,0 +1,80 @@
+name: "Terraform Setup (Azure OIDC)"
+description: |
+  Composite that logs into Azure via OIDC and initialises Terraform against
+  the Azure Blob remote state backend. Used by every Terraform workflow in
+  this repo so the boilerplate lives in one place.
+
+inputs:
+  working-directory:
+    description: "Directory containing the Terraform stack (e.g. terraform/environments/poc)"
+    required: true
+  azure-client-id:
+    description: "Azure AD app client ID (federated identity)"
+    required: true
+  azure-tenant-id:
+    description: "Azure tenant ID"
+    required: true
+  azure-subscription-id:
+    description: "Azure subscription ID"
+    required: true
+  terraform-version:
+    description: "Terraform CLI version (e.g. 1.9.5)"
+    required: true
+  state-resource-group:
+    description: "Resource group hosting the tfstate storage account"
+    required: true
+  state-storage-account:
+    description: "Storage account holding tfstate"
+    required: true
+  state-container:
+    description: "Blob container holding tfstate"
+    required: true
+  state-key:
+    description: "Blob key for this stack's state (e.g. poc.tfstate, bootstrap.tfstate)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Azure login (OIDC)
+      uses: azure/login@v2
+      with:
+        client-id: ${{ inputs.azure-client-id }}
+        tenant-id: ${{ inputs.azure-tenant-id }}
+        subscription-id: ${{ inputs.azure-subscription-id }}
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ inputs.terraform-version }}
+        terraform_wrapper: false
+
+    - name: Sanity check — confirm we are logged in as the SP, not a user
+      shell: bash
+      run: |
+        # An OIDC login surfaces `user.name` as the AD app's client ID, not a UPN.
+        # If a UPN appears here, OIDC didn't kick in and we'd be running under a
+        # human's identity — fail fast.
+        ACCOUNT_USER=$(az account show --query 'user.name' -o tsv)
+        echo "Azure user: $ACCOUNT_USER"
+        case "$ACCOUNT_USER" in
+          *@*) echo "::error::Expected OIDC SP login; got UPN $ACCOUNT_USER" ; exit 1 ;;
+        esac
+
+    - name: terraform init (remote state)
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        ARM_USE_OIDC: "true"
+        ARM_CLIENT_ID: ${{ inputs.azure-client-id }}
+        ARM_TENANT_ID: ${{ inputs.azure-tenant-id }}
+        ARM_SUBSCRIPTION_ID: ${{ inputs.azure-subscription-id }}
+      run: |
+        terraform init \
+          -input=false \
+          -backend-config="resource_group_name=${{ inputs.state-resource-group }}" \
+          -backend-config="storage_account_name=${{ inputs.state-storage-account }}" \
+          -backend-config="container_name=${{ inputs.state-container }}" \
+          -backend-config="key=${{ inputs.state-key }}" \
+          -backend-config="use_azuread_auth=true" \
+          -backend-config="use_oidc=true"
