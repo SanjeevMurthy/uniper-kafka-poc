@@ -1,0 +1,13 @@
+# Copy to terraform.tfvars (NEVER commit terraform.tfvars).
+# Fill in your values before the first local apply.
+
+github_org            = "your-org"
+github_repo           = "uniper-poc-infra"
+azure_subscription_id = "00000000-0000-0000-0000-000000000000"
+azure_region          = "westeurope"
+project_name          = "uniper-poc"
+
+# Override only if you want non-default names:
+# state_resource_group_name = "tfstate-rg"
+# state_container_name      = "tfstate"
+# poc_resource_group_name   = "uniper-poc-rg"
