@@ -1,0 +1,74 @@
+name: destroy
+
+# Tear down the POC stack. Bootstrap stack must be destroyed manually if
+# you want to retire the repo (see terraform/bootstrap/README.md).
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type the value of PROJECT_NAME (e.g. uniper-poc) to confirm"
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: destroy-poc
+  cancel-in-progress: false
+
+jobs:
+  destroy:
+    name: terraform destroy (poc)
+    runs-on: ubuntu-latest
+    environment: poc            # extra approval gate on top of the type-to-confirm
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: terraform/environments/poc
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_azure_region: ${{ vars.AZURE_REGION }}
+      TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
+      TF_VAR_confluent_cloud_api_key: ${{ secrets.CONFLUENT_CLOUD_API_KEY }}
+      TF_VAR_confluent_cloud_api_secret: ${{ secrets.CONFLUENT_CLOUD_API_SECRET }}
+    steps:
+      - name: Verify confirmation
+        run: |
+          if [ "${{ inputs.confirm }}" != "${{ vars.PROJECT_NAME }}" ]; then
+            echo "::error::Confirmation did not match PROJECT_NAME (${{ vars.PROJECT_NAME }}). Refusing to destroy."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Terraform setup (Azure OIDC + remote state)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working-directory: terraform/environments/poc
+          azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+          azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          terraform-version: ${{ vars.TF_VERSION }}
+          state-resource-group: ${{ vars.TF_STATE_RG }}
+          state-storage-account: ${{ vars.TF_STATE_SA }}
+          state-container: ${{ vars.TF_STATE_CONTAINER }}
+          state-key: poc.tfstate
+
+      - name: terraform destroy
+        run: terraform destroy -auto-approve -input=false -lock-timeout=10m
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Destroy result"
+            echo
+            echo "- Triggered by: \`${{ github.actor }}\`"
+            echo "- Status: \`${{ job.status }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

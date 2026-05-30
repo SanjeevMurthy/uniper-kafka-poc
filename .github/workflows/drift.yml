@@ -1,0 +1,80 @@
+name: drift
+
+# Manually-triggered drift detection. Compares live infra to terraform state
+# and prints the diff in the workflow summary. No issue is opened.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: drift-poc
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    name: drift detection (poc)
+    runs-on: ubuntu-latest
+    environment: poc
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: terraform/environments/poc
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_azure_region: ${{ vars.AZURE_REGION }}
+      TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
+      TF_VAR_confluent_cloud_api_key: ${{ secrets.CONFLUENT_CLOUD_API_KEY }}
+      TF_VAR_confluent_cloud_api_secret: ${{ secrets.CONFLUENT_CLOUD_API_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Terraform setup (Azure OIDC + remote state)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working-directory: terraform/environments/poc
+          azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+          azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          terraform-version: ${{ vars.TF_VERSION }}
+          state-resource-group: ${{ vars.TF_STATE_RG }}
+          state-storage-account: ${{ vars.TF_STATE_SA }}
+          state-container: ${{ vars.TF_STATE_CONTAINER }}
+          state-key: poc.tfstate
+
+      - name: detect drift
+        id: drift
+        run: |
+          set +e
+          terraform plan -detailed-exitcode -lock=false -input=false -no-color > drift.txt 2>&1
+          ec=$?
+          echo "exitcode=$ec" >> "$GITHUB_OUTPUT"
+          if [ $ec -eq 1 ]; then
+            cat drift.txt
+            exit 1
+          fi
+          exit 0
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Drift detection result"
+            echo
+            case "${{ steps.drift.outputs.exitcode }}" in
+              0) echo "No drift" ;;
+              2) echo "Drift detected — review the diff below" ;;
+              *) echo "Plan errored" ;;
+            esac
+            echo
+            echo '```'
+            head -c 50000 drift.txt 2>/dev/null || true
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

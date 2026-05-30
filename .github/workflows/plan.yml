@@ -1,0 +1,90 @@
+name: plan
+
+# Manually triggered dry-run of the POC stack. Use this to preview changes
+# before running `apply`.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: plan-poc
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    name: terraform plan (poc)
+    runs-on: ubuntu-latest
+    environment: poc            # binds the OIDC subject to the poc federated credential
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: terraform/environments/poc
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_azure_region: ${{ vars.AZURE_REGION }}
+      TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
+      TF_VAR_confluent_cloud_api_key: ${{ secrets.CONFLUENT_CLOUD_API_KEY }}
+      TF_VAR_confluent_cloud_api_secret: ${{ secrets.CONFLUENT_CLOUD_API_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Terraform setup (Azure OIDC + remote state)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working-directory: terraform/environments/poc
+          azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+          azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          terraform-version: ${{ vars.TF_VERSION }}
+          state-resource-group: ${{ vars.TF_STATE_RG }}
+          state-storage-account: ${{ vars.TF_STATE_SA }}
+          state-container: ${{ vars.TF_STATE_CONTAINER }}
+          state-key: poc.tfstate
+
+      - name: terraform plan
+        id: plan
+        run: |
+          set +e
+          terraform plan -input=false -lock-timeout=5m -no-color -out=tfplan 2>&1 | tee plan.txt
+          ec=${PIPESTATUS[0]}
+          echo "exitcode=$ec" >> "$GITHUB_OUTPUT"
+          terraform show -no-color tfplan > plan-full.txt 2>/dev/null || true
+          exit 0
+
+      - name: Render plan to step summary
+        if: always()
+        run: |
+          {
+            echo "## Terraform plan — environments/poc"
+            echo
+            echo "Exit code: \`${{ steps.plan.outputs.exitcode }}\` (0 = no changes, 2 = diff, 1 = error)"
+            echo
+            echo '```hcl'
+            head -c 50000 plan-full.txt 2>/dev/null || echo "(plan output missing)"
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload plan artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-poc
+          path: |
+            terraform/environments/poc/tfplan
+            terraform/environments/poc/plan-full.txt
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Fail on plan error
+        if: steps.plan.outputs.exitcode == '1'
+        run: |
+          echo "::error::terraform plan failed"
+          exit 1

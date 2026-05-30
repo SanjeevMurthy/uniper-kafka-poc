@@ -1,0 +1,94 @@
+name: bootstrap
+
+# One-time identity + state-backend provisioning. Manually triggered.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "plan or apply"
+        required: true
+        default: "plan"
+        type: choice
+        options: [plan, apply]
+      confirm:
+        description: "Type 'BOOTSTRAP' to confirm an apply"
+        required: false
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: bootstrap
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    name: terraform ${{ inputs.action }} (bootstrap)
+    runs-on: ubuntu-latest
+    environment: bootstrap
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: terraform/bootstrap
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_github_org: ${{ github.repository_owner }}
+      TF_VAR_github_repo: ${{ github.event.repository.name }}
+      TF_VAR_azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_azure_region: ${{ vars.AZURE_REGION }}
+      TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
+    steps:
+      - name: Guard apply with confirmation
+        if: inputs.action == 'apply' && inputs.confirm != 'BOOTSTRAP'
+        run: |
+          echo "::error::Refusing to apply: confirmation string did not match 'BOOTSTRAP'"
+          exit 1
+
+      - uses: actions/checkout@v4
+
+      - name: Terraform setup (Azure OIDC + remote state)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working-directory: terraform/bootstrap
+          azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+          azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          terraform-version: ${{ vars.TF_VERSION }}
+          state-resource-group: ${{ vars.TF_STATE_RG }}
+          state-storage-account: ${{ vars.TF_STATE_SA }}
+          state-container: ${{ vars.TF_STATE_CONTAINER }}
+          state-key: bootstrap.tfstate
+
+      - name: terraform plan
+        id: plan
+        run: terraform plan -input=false -lock-timeout=5m -out=tfplan
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-tfplan
+          path: terraform/bootstrap/tfplan
+          retention-days: 7
+
+      - name: terraform apply
+        if: inputs.action == 'apply'
+        run: terraform apply -input=false -lock-timeout=5m tfplan
+
+      - name: Print non-sensitive outputs
+        if: inputs.action == 'apply' && always()
+        run: |
+          {
+            echo "## Bootstrap outputs"
+            echo
+            echo "Copy these into GitHub repo variables:"
+            echo
+            echo '```bash'
+            terraform output -json \
+              | jq -r 'to_entries[] | select(.value.sensitive == false) | "\(.key)=\(.value.value)"'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

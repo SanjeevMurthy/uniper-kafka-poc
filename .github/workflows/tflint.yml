@@ -1,0 +1,61 @@
+name: tflint
+
+# Static checks (fmt / validate / tflint / trivy). Manually triggered.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tflint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: fmt / validate / tflint / trivy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ vars.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff terraform/
+
+      - name: terraform validate (per stack/module)
+        run: |
+          set -euo pipefail
+          for d in terraform/bootstrap \
+                   terraform/environments/poc \
+                   terraform/modules/confluent-network \
+                   terraform/modules/confluent-cluster \
+                   terraform/modules/azure-network \
+                   terraform/modules/azure-aks; do
+            echo "::group::validate $d"
+            terraform -chdir="$d" init -backend=false -input=false -no-color
+            terraform -chdir="$d" validate -no-color
+            echo "::endgroup::"
+          done
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: tflint
+        run: |
+          tflint --init
+          tflint --recursive --format compact terraform/
+
+      - name: trivy config scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: terraform/
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+          ignore-unfixed: true

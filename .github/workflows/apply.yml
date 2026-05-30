@@ -1,0 +1,80 @@
+name: apply
+
+# Manually triggered apply of the POC stack. Provisions Confluent + Azure +
+# AKS. Expect 30-50 min for the first run (Dedicated cluster is the long pole).
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type the value of PROJECT_NAME (e.g. uniper-poc) to confirm"
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: apply-poc
+  cancel-in-progress: false   # never cancel an in-flight apply
+
+jobs:
+  apply:
+    name: terraform apply (poc)
+    runs-on: ubuntu-latest
+    environment: poc
+    timeout-minutes: 90         # Dedicated cluster + AKS can take 30-50 min
+    defaults:
+      run:
+        working-directory: terraform/environments/poc
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_azure_region: ${{ vars.AZURE_REGION }}
+      TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
+      TF_VAR_confluent_cloud_api_key: ${{ secrets.CONFLUENT_CLOUD_API_KEY }}
+      TF_VAR_confluent_cloud_api_secret: ${{ secrets.CONFLUENT_CLOUD_API_SECRET }}
+    steps:
+      - name: Verify confirmation
+        run: |
+          if [ "${{ inputs.confirm }}" != "${{ vars.PROJECT_NAME }}" ]; then
+            echo "::error::Confirmation did not match PROJECT_NAME (${{ vars.PROJECT_NAME }}). Refusing to apply."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Terraform setup (Azure OIDC + remote state)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working-directory: terraform/environments/poc
+          azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+          azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          azure-subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          terraform-version: ${{ vars.TF_VERSION }}
+          state-resource-group: ${{ vars.TF_STATE_RG }}
+          state-storage-account: ${{ vars.TF_STATE_SA }}
+          state-container: ${{ vars.TF_STATE_CONTAINER }}
+          state-key: poc.tfstate
+
+      - name: terraform plan
+        run: terraform plan -input=false -lock-timeout=10m -out=tfplan
+
+      - name: terraform apply
+        run: terraform apply -input=false -lock-timeout=10m tfplan
+
+      - name: Summarise non-sensitive outputs
+        if: always()
+        run: |
+          {
+            echo "## Apply summary"
+            echo
+            echo "| Output | Value |"
+            echo "|---|---|"
+            terraform output -json \
+              | jq -r 'to_entries[] | select(.value.sensitive == false) | "| `\(.key)` | `\(.value.value)` |"' \
+              || echo "| (no outputs available) | |"
+          } >> "$GITHUB_STEP_SUMMARY"
