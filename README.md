@@ -14,28 +14,32 @@
 
 ## 1. Problem statement
 
-We need a reproducible way to stand up a **private, production-shaped Kafka
-cluster on Azure** for a POC and tear it down on demand. Constraints:
+Use Terraform to provision a **private Confluent Cloud Kafka cluster** (reachable
+only via Azure Private Link), create topics, and wire up service-account
+credentials — all reproducible and tear-down-able on demand.
 
-- **No public Kafka path.** Brokers must be reachable only from inside the
-  customer VNet, over Azure Private Link.
-- **No long-lived cloud credentials.** Anything that runs in CI must
-  authenticate via short-lived federated tokens, not static client secrets.
-- **Reproducible from scratch.** A single engineer should be able to provision
-  everything, produce + consume a message end-to-end over Private Link, and
-  destroy everything within one hour.
-- **Lean operational surface.** All provisioning runs **manually** from
-  GitHub Actions — no scheduled jobs, no PR plumbing.
+### In scope
+
+- Create (or reference) a Confluent environment and a small Kafka cluster via Terraform
+- Provision cloud-side networking for private connectivity (VNet + Private Link endpoint)
+- Create **2 topics** (`orders`, `payments`), one service account, one API key, and ACLs for produce/consume rights
+- Provision / configure an AKS cluster via Terraform for smoke-testing
+- Document run steps and verification steps
+
+### Out of scope
+
+- Production-grade HA, large clusters, or long-running performance tests
+- Multi-region failover
 
 ## 2. Solution approach
 
 A two-stack Terraform layout driven entirely by manually-triggered GitHub
 Actions workflows:
 
-| Stack | Purpose | Run frequency |
-|-------|---------|---------------|
-| `terraform/bootstrap` | Azure AD app + 2 federated OIDC credentials, RG + Storage Account + container for tfstate, baseline RBAC | One-time + rare rotations |
-| `terraform/environments/poc` | Confluent environment + private-link network + Dedicated Kafka cluster + topics + ACLs, Azure VNet + Private Endpoint + Private DNS + AKS | Per POC run |
+| Stack                        | Purpose                                                                                                                                   | Run frequency             |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `terraform/bootstrap`        | Azure AD app + 2 federated OIDC credentials, RG + Storage Account + container for tfstate, baseline RBAC                                  | One-time + rare rotations |
+| `terraform/environments/poc` | Confluent environment + private-link network + Dedicated Kafka cluster + topics + ACLs, Azure VNet + Private Endpoint + Private DNS + AKS | Per POC run               |
 
 All POC-stack workflows (`plan`, `apply`, `destroy`, `drift`) run under the
 `poc` GitHub Environment, which gates them behind the AAD federated
@@ -223,14 +227,14 @@ For step-by-step setup from a clean machine, see [`SETUP.md`](./SETUP.md).
 
 ## 5. Workflows at a glance
 
-| Workflow | Trigger | Environment | Purpose |
-|----------|---------|-------------|---------|
+| Workflow    | Trigger                                                    | Environment | Purpose                           |
+| ----------- | ---------------------------------------------------------- | ----------- | --------------------------------- |
 | `bootstrap` | `workflow_dispatch` (`plan`/`apply` + `BOOTSTRAP` confirm) | `bootstrap` | One-time identity + state backend |
-| `plan` | `workflow_dispatch` | `poc` | Dry-run the POC stack |
-| `apply` | `workflow_dispatch` (`PROJECT_NAME` confirm) | `poc` | Provision the POC stack |
-| `destroy` | `workflow_dispatch` (`PROJECT_NAME` confirm) | `poc` | Tear down the POC stack |
-| `drift` | `workflow_dispatch` | `poc` | Compare state to live infra |
-| `tflint` | `workflow_dispatch` | — | fmt / validate / tflint / trivy |
+| `plan`      | `workflow_dispatch`                                        | `poc`       | Dry-run the POC stack             |
+| `apply`     | `workflow_dispatch` (`PROJECT_NAME` confirm)               | `poc`       | Provision the POC stack           |
+| `destroy`   | `workflow_dispatch` (`PROJECT_NAME` confirm)               | `poc`       | Tear down the POC stack           |
+| `drift`     | `workflow_dispatch`                                        | `poc`       | Compare state to live infra       |
+| `tflint`    | `workflow_dispatch`                                        | —           | fmt / validate / tflint / trivy   |
 
 Every mutating workflow requires a typed confirmation string, runs under a
 GitHub Environment (so secrets are scoped), and uses OIDC for Azure auth.
