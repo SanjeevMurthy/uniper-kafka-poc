@@ -1,0 +1,127 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# pytest / coverage
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# mypy
+.mypy_cache/
+
+# ruff / linting
+.ruff_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker
+docker-compose.override.yml
+
+# Data / secrets (safety)
+*.pem
+*.key
+*.csv
+*.parquet
+data/
+!data/.gitkeep
+
+
+todo*.md
+plan*/
+
+# ----------------------------------------------------------------------
+# Terraform
+# ----------------------------------------------------------------------
+
+# Local working state
+**/.terraform/
+**/.terraform.tfstate.lock.info
+**/terraform.tfstate
+**/terraform.tfstate.*
+**/crash.log
+**/crash.*.log
+
+# Never commit variable files with real values
+**/*.auto.tfvars
+**/*.auto.tfvars.json
+**/terraform.tfvars
+**/terraform.tfvars.json
+!**/terraform.tfvars.example
+
+# Plan artifacts (binary; per-run only)
+**/tfplan
+**/*.tfplan
+**/plan.txt
+**/plan-full.txt
+**/drift.txt
+
+# Override files
+**/override.tf
+**/override.tf.json
+**/*_override.tf
+**/*_override.tf.json
+
+# Lock files: COMMITTED for terraform/bootstrap and terraform/environments/poc
+# (not ignored — see docs/decisions for rationale)
+
+# ----------------------------------------------------------------------
+# Tooling
+# ----------------------------------------------------------------------
+.envrc
+.direnv/
