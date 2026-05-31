@@ -134,11 +134,16 @@ resource "azurerm_role_assignment" "sp_state_blob_owner" {
 
 # POC-RG scoped User Access Administrator — required because the POC stack
 # (specifically AKS with managed identity wiring) creates role assignments
-# within its own RG. The assignment is pre-created on a path that may not
-# yet exist; Azure allows this.
-resource "azurerm_role_assignment" "sp_poc_rg_uaa" {
-  scope                = "${data.azurerm_subscription.current.id}/resourceGroups/${var.poc_resource_group_name}"
-  role_definition_name = "User Access Administrator"
-  principal_id         = azuread_service_principal.gh.object_id
-  description          = "Lets the POC stack create role assignments inside its own resource group (e.g. AKS kubelet identity to ACR pull)."
-}
+# within its own RG.
+#
+# TODO: Uncomment after the POC resource group ('uniper-poc-rg') has been
+# created by the POC Terraform stack. Azure does NOT allow role assignments
+# on non-existent resource group scopes (returns 404).
+#
+# resource "azurerm_role_assignment" "sp_poc_rg_uaa" {
+#   scope                = "${data.azurerm_subscription.current.id}/resourceGroups/${var.poc_resource_group_name}"
+#   role_definition_name = "User Access Administrator"
+#   principal_id         = azuread_service_principal.gh.object_id
+#   description          = "Lets the POC stack create role assignments inside its own resource group (e.g. AKS kubelet identity to ACR pull)."
+# }
+
