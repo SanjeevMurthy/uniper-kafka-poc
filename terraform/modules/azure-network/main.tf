@@ -61,7 +61,7 @@ resource "azurerm_subnet" "private_endpoints" {
 # is allow-listed there).
 # ---------------------------------------------------------------------------
 resource "azurerm_private_endpoint" "confluent" {
-  for_each = var.private_link_service_aliases
+  for_each = toset(var.zones)
 
   name                = "${var.project_name}-pe-${each.key}"
   location            = azurerm_resource_group.main.location
@@ -72,7 +72,7 @@ resource "azurerm_private_endpoint" "confluent" {
   private_service_connection {
     name                              = "${var.project_name}-psc-${each.key}"
     is_manual_connection              = false
-    private_connection_resource_alias = each.value
+    private_connection_resource_alias = var.private_link_service_aliases[each.key]
   }
 }
 

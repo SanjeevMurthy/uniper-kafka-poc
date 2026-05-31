@@ -37,6 +37,7 @@ module "confluent_network" {
   environment_name      = var.confluent_environment_name
   confluent_region      = var.azure_region
   azure_subscription_id = var.azure_subscription_id
+  zones                 = var.zones
 }
 
 # ============================================================================
@@ -53,6 +54,7 @@ module "azure_network" {
   pe_subnet_prefix             = var.pe_subnet_prefix
   private_link_service_aliases = module.confluent_network.private_link_service_aliases
   confluent_dns_domain         = module.confluent_network.dns_domain
+  zones                        = var.zones
   tags                         = local.derived_tags
 }
 

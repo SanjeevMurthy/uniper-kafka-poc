@@ -66,3 +66,10 @@ variable "tags" {
   default     = {}
   description = "Tags applied to every Azure resource in this module."
 }
+
+variable "zones" {
+  type        = list(string)
+  default     = ["1", "2", "3"]
+  description = "Availability zones to create Private Endpoints in."
+}
+

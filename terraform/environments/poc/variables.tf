@@ -131,3 +131,10 @@ variable "tags" {
   }
   description = "Tags applied to every Azure resource."
 }
+
+variable "zones" {
+  type        = list(string)
+  default     = ["1", "2", "3"]
+  description = "Availability zones for Confluent Private Link endpoints."
+}
+
