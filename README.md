@@ -191,8 +191,7 @@ flowchart LR
 │   ├── kafka-smoke-test.sh         # produce + consume over Private Link
 │   └── kafka-client-pod.yaml       # cp-kafka pod for the smoke test
 │
-├── README.md                       # this file
-└── SETUP.md                        # end-to-end setup walkthrough
+└── README.md                       # this file
 ```
 
 ## 4. Test instructions
@@ -222,8 +221,6 @@ The script verifies all four assertions:
 4. A TCP connection from your laptop to port 9092 **fails** (proves the
    cluster has no public path). Skip this assertion with
    `SKIP_NEGATIVE_TEST=1`.
-
-For step-by-step setup from a clean machine, see [`SETUP.md`](./SETUP.md).
 
 ## 5. Workflows at a glance
 
