@@ -37,7 +37,6 @@ module "confluent_network" {
   environment_name      = var.confluent_environment_name
   confluent_region      = var.azure_region
   azure_subscription_id = var.azure_subscription_id
-  zones                 = var.zones
 }
 
 # ============================================================================
