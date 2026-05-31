@@ -38,7 +38,7 @@ resource "confluent_network" "private_link" {
   cloud            = "AZURE"
   region           = var.confluent_region
   connection_types = ["PRIVATELINK"]
-  zones            = var.zones
+  zones            = length(var.zones) > 0 ? var.zones : null
 
   environment {
     id = confluent_environment.main.id

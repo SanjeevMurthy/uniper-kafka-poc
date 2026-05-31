@@ -71,8 +71,9 @@ resource "azurerm_private_endpoint" "confluent" {
 
   private_service_connection {
     name                              = "${var.project_name}-psc-${each.key}"
-    is_manual_connection              = false
+    is_manual_connection              = true
     private_connection_resource_alias = var.private_link_service_aliases[each.key]
+    request_message                   = "Connection from AKS VNet"
   }
 }
 
@@ -104,15 +105,28 @@ resource "azurerm_private_dns_zone_virtual_network_link" "confluent" {
 # Wildcard A records — one per zone subdomain pointing at the corresponding
 # Private Endpoint's NIC private IP. Confluent's bootstrap server returns
 # zone-prefixed FQDNs (e.g. e-az1.lkc-xxx.westeurope.azure.privatelink.confluent.cloud);
-# the *.<zone> wildcard catches them.
+# the *.az<zone> wildcard catches them.
 # ---------------------------------------------------------------------------
 resource "azurerm_private_dns_a_record" "confluent" {
   for_each = azurerm_private_endpoint.confluent
 
-  name                = "*.${each.key}"
+  name                = "*.az${each.key}"
   zone_name           = azurerm_private_dns_zone.confluent.name
   resource_group_name = azurerm_resource_group.main.name
   ttl                 = 60
   records             = [each.value.private_service_connection[0].private_ip_address]
+  tags                = var.tags
+}
+
+# ---------------------------------------------------------------------------
+# Wildcard A record for the bootstrap server at the zone root.
+# Resolves the cluster's bootstrap server hostname to all private endpoint IPs.
+# ---------------------------------------------------------------------------
+resource "azurerm_private_dns_a_record" "confluent_bootstrap" {
+  name                = "*"
+  zone_name           = azurerm_private_dns_zone.confluent.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 60
+  records             = [for pe in azurerm_private_endpoint.confluent : pe.private_service_connection[0].private_ip_address]
   tags                = var.tags
 }
