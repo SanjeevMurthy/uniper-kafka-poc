@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: "Type the value of PROJECT_NAME (e.g. uniper-poc) to confirm"
+        description: "Type the value of PROJECT_NAME (e.g. uniper-kafka-poc) to confirm"
         required: true
         type: string
 
