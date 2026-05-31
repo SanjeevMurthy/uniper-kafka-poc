@@ -38,14 +38,14 @@ jobs:
       TF_VAR_confluent_cloud_api_key: ${{ secrets.CONFLUENT_CLOUD_API_KEY }}
       TF_VAR_confluent_cloud_api_secret: ${{ secrets.CONFLUENT_CLOUD_API_SECRET }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Verify confirmation
         run: |
           if [ "${{ inputs.confirm }}" != "${{ vars.PROJECT_NAME }}" ]; then
             echo "::error::Confirmation did not match PROJECT_NAME (${{ vars.PROJECT_NAME }}). Refusing to apply."
             exit 1
           fi
-
-      - uses: actions/checkout@v4
 
       - name: Terraform setup (Azure OIDC + remote state)
         uses: ./.github/actions/terraform-setup
