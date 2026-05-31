@@ -19,17 +19,18 @@
 #   Subsequent runs (whether locally or via CI) read from this backend.
 ###############################################################################
 
-# terraform {
-#   backend "azurerm" {
-#     # Concrete values are supplied via `-backend-config=...` to allow the
-#     # same code to be initialised against state in any subscription.
-#     #
-#     # In CI, the bootstrap workflow passes:
-#     #   resource_group_name  = vars.TF_STATE_RG
-#     #   storage_account_name = vars.TF_STATE_SA
-#     #   container_name       = vars.TF_STATE_CONTAINER
-#     #   key                  = "bootstrap.tfstate"
-#     use_azuread_auth = true
-#     use_oidc         = true
-#   }
-# }
+terraform {
+  backend "azurerm" {
+    # Concrete values are supplied via `-backend-config=...` to allow the
+    # same code to be initialised against state in any subscription.
+    #
+    # In CI, the bootstrap workflow passes:
+    #   resource_group_name  = vars.TF_STATE_RG
+    #   storage_account_name = vars.TF_STATE_SA
+    #   container_name       = vars.TF_STATE_CONTAINER
+    #   key                  = "bootstrap.tfstate"
+    use_azuread_auth = true
+    use_oidc         = true
+  }
+}
+

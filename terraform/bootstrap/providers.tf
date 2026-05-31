@@ -25,7 +25,8 @@ provider "azurerm" {
       prevent_deletion_if_contains_resources = true
     }
   }
-  subscription_id = var.azure_subscription_id
+  subscription_id    = var.azure_subscription_id
+  storage_use_azuread = true # Required because storage account disables shared keys (shared_access_key_enabled = false)
 }
 
 provider "azuread" {
