@@ -16,13 +16,13 @@ variable "confluent_cloud_api_secret" {
 
 variable "confluent_environment_name" {
   type        = string
-  default     = "uniper-poc"
+  default     = "uniper-kafka-poc"
   description = "Display name of the Confluent Environment."
 }
 
 variable "confluent_cluster_name" {
   type        = string
-  default     = "uniper-poc-kafka"
+  default     = "uniper-kafka-poc-kafka"
   description = "Display name of the Confluent Kafka cluster."
 }
 
@@ -78,7 +78,7 @@ variable "azure_region" {
 
 variable "resource_group_name" {
   type        = string
-  default     = "uniper-poc-rg"
+  default     = "uniper-kafka-poc-rg"
   description = "Resource group for all POC Azure resources. Distinct from the tfstate RG so destroy is safe."
 }
 
@@ -118,14 +118,14 @@ variable "aks_vm_size" {
 
 variable "project_name" {
   type        = string
-  default     = "uniper-poc"
+  default     = "uniper-kafka-poc"
   description = "Naming prefix shared across resources."
 }
 
 variable "tags" {
   type = map(string)
   default = {
-    project     = "uniper-poc"
+    project     = "uniper-kafka-poc"
     environment = "poc"
     managed_by  = "terraform"
   }
