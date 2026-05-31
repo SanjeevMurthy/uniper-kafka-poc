@@ -27,9 +27,8 @@ resource "confluent_kafka_cluster" "main" {
   cloud        = "AZURE"
   region       = var.confluent_region
 
-  dedicated {
-    cku = var.cku
-  }
+  enterprise {}
+
 
   environment {
     id = var.environment_id
