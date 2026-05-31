@@ -118,3 +118,7 @@ plan*/
 **/*_override.tf.json
 .envrc
 .direnv/
+
+
+secret.txt
+setup-log.md
